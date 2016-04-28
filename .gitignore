@@ -1,4 +1,2 @@
-*~
-*.swp
-node_modules/
+node_modules
 category/*.js

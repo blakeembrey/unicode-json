@@ -1,9 +1,6 @@
-# unicode lookup table
+# [unicode-json](https://github.com/Zertz/unicode-json) [![Build Status](https://travis-ci.org/Zertz/unicode-json.svg?branch=master)](https://travis-ci.org/Zertz/unicode-json) [![NPM version](https://badge.fury.io/js/unicode-json.png)](http://badge.fury.io/js/unicode-json)
 
-loads http://unicode.org/Public/UNIDATA/UnicodeData.txt into [nodejs](http://nodejs.org).
-
-[![Build Status](https://secure.travis-ci.org/dodo/node-unicodetable.png)](http://travis-ci.org/dodo/node-unicodetable)
-
+> loads http://unicode.org/Public/UNIDATA/UnicodeData.txt into [nodejs](http://nodejs.org).
 
 ## install
 
@@ -13,7 +10,7 @@ sudo apt-get install unicode-data # optional
 # gentoo
 sudo emerge unicode-data # optional
 
-npm install unicode
+npm install unicode-json
 ```
 
 If you have problems installing `UnicodeData.txt` because unicode.org is down or you're behind a proxy, try installing unicode-data via your system package installer.
