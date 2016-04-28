@@ -22,7 +22,7 @@ require('child_process').exec('node install.js', {
       // test if we can load it
       require('./category/' + cat)
       // clean up
-      delete require.cache[path.join(__dirname, 'category', cat + '.js')]
+      delete require.cache[path.join(__dirname, 'category', cat + '.json')]
       // ✓
       process.stdout.write('\x1B[32m✓\x1B[39m unicode/category/' + cat + '\n')
     }, function (err) {

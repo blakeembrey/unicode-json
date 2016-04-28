@@ -18,9 +18,6 @@
     "pretest": "npm run lint",
     "test": "node test.js"
   },
-  "dependencies": {
-    "bufferstream": ">= 0.6.2"
-  },
   "license": "MIT",
   "devDependencies": {
     "standard": "^6.0.8"

@@ -4,7 +4,7 @@
 var fs = require('fs')
 var path = require('path')
 var http = require('http')
-var BufferStream = require('bufferstream')
+var readline = require('readline')
 
 // http://www.ksu.ru/eng/departments/ktk/test/perl/lib/unicode/UCDFF301.html
 var keys = [
@@ -22,7 +22,8 @@ var keys = [
   'comment',
   'uppercase_mapping',
   'lowercase_mapping',
-  'titlecase_mapping']
+  'titlecase_mapping'
+]
 
 var systemfiles = [
   '/usr/share/unicode/UnicodeData.txt', // debian
@@ -40,8 +41,6 @@ var unicodedatafile = {
 
 var proxyServer = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy
 
-var refs = 0
-
 // based on https://github.com/mathiasbynens/jsesc
 function escape (charValue) {
   var hexadecimal = charValue.replace(/^0*/, '') // is already in hexadecimal
@@ -50,81 +49,7 @@ function escape (charValue) {
 }
 
 function stringify (key, value) {
-  return key + ':' + JSON.stringify(value).replace(/\\\\(u|x)/, '\\$1')
-}
-
-function newFile (name, callback) {
-  var filename = path.join(__dirname, 'category', name + '.js')
-  var file = fs.createWriteStream(filename, {
-    encoding: 'utf8'
-  })
-
-  file.once('close', function () {
-    if (!--refs) {
-      console.log('done.')
-      callback()
-    }
-  })
-
-  refs++
-
-  return file
-}
-
-function parser (callback) {
-  var data = {}
-  var buffer = new BufferStream({encoding: 'utf8', size: 'flexible'})
-  var resume = buffer.resume.bind(buffer)
-
-  buffer.split('\n', function (line) {
-    var v
-    var c
-    var char = {}
-    var values = line.toString().split(';')
-
-    for (var i = 0; i < 15; i++) {
-      char[keys[i]] = values[i]
-    }
-
-    v = parseInt(char.value, 16)
-    char.symbol = escape(char.value)
-    c = char.category
-
-    if (!data[c]) {
-      data[c] = newFile(c, callback)
-        .on('drain', resume)
-        .once('open', function () {
-          console.log('saving data as %s.js …', c)
-          if (this.write('module.exports={' + stringify(v, char))) {
-            buffer.resume()
-          }
-        })
-      buffer.pause()
-    } else if (!data[c].write(',' + stringify(v, char))) {
-      buffer.pause()
-    }
-  })
-
-  buffer.on('end', function () {
-    var cat
-    var categories = Object.keys(data)
-    var len = categories.length
-
-    for (var i = 0; i < len; i++) {
-      cat = categories[i]
-      data[cat].end('};')
-    }
-  })
-
-  buffer.on('error', function (err) {
-    if (typeof err === 'string') {
-      err = new Error(err)
-    }
-
-    throw err
-  })
-
-  return buffer
+  return '"' + key + '"' + ':' + JSON.stringify(value)
 }
 
 function read_file (success_cb, error_cb) {
@@ -137,7 +62,7 @@ function read_file (success_cb, error_cb) {
       return error_cb()
     }
 
-    console.info('try to read file %s...', systemfile)
+    console.info('try to read file %s…', systemfile)
 
     fs.exists(systemfile, function (exists) {
       if (!exists) {
@@ -145,11 +70,62 @@ function read_file (success_cb, error_cb) {
         return try_reading(success_cb, error_cb)
       }
 
-      console.info('parsing...')
+      console.info('parsing…')
 
-      fs.createReadStream(systemfile, {
-        encoding: 'utf8'
-      }).pipe(parser(success_cb))
+      var data = {}
+
+      var rl = readline.createInterface({
+        input: fs.createReadStream(systemfile, {
+          encoding: 'utf8'
+        })
+      })
+
+      rl.on('line', function (line) {
+        var char = {}
+        var values = line.toString().split(';')
+
+        for (var i = 0, length = keys.length; i < length; i++) {
+          char[keys[i]] = values[i]
+        }
+
+        char.symbol = escape(char.value)
+
+        var v = parseInt(char.value, 16)
+        var c = char.category
+
+        if (!data[c]) {
+          data[c] = fs.createWriteStream(path.join(__dirname, 'category', c + '.json'), {
+            encoding: 'utf8'
+          })
+
+          data[c].on('drain', function () {
+            rl.resume()
+          })
+
+          console.log('saving data as %s.js…', c)
+
+          if (data[c].write('{' + stringify(v, char))) {
+            rl.resume()
+          }
+
+          rl.pause()
+        } else if (!data[c].write(',' + stringify(v, char))) {
+          rl.pause()
+        }
+      })
+
+      rl.on('close', function () {
+        var files = Object.keys(data).length
+
+        for (var key in data) {
+          data[key].end('}')
+          data[key].once('finish', function () {
+            if (--files === 0) {
+              success_cb()
+            }
+          })
+        }
+      })
     })
   }
 
@@ -173,19 +149,30 @@ function download_file (callback) {
     unicodedatafile.port = proxyVars[4]
   }
 
+  var dst = 'UnicodeData.txt'
+
   http.get(unicodedatafile, function (res) {
-    console.log('fetching...')
+    console.log('fetching…')
 
     // stop timeout couting
     if (timeouthandle) {
       clearTimeout(timeouthandle)
     }
 
+    var file = fs.createWriteStream(dst)
+
     res.setEncoding('utf8')
-    res.pipe(parser(callback))
+    res.pipe(file)
+
+    file.on('finish', function () {
+      file.close(function () {
+        read_file(callback, callback)
+      })
+    })
   }).on('error', function (err) {
     console.error('Error while downloading %s: %s', path.basename(unicodedatafile.path), err)
     console.log('Please download file manually, put it next to the install.js file and run `node install.js` again.')
+    fs.unlink(dst)
     callback(1)
   })
 
@@ -198,15 +185,13 @@ function download_file (callback) {
 // run
 if (!module.parent) { // not required
   read_file(process.exit, function () {
-    console.log('try to download …')
+    console.log('try to download…')
     download_file(process.exit)
   })
 } else {
   module.exports = {
     escape: escape,
     stringify: stringify,
-    newFile: newFile,
-    parser: parser,
     read_file: read_file,
     download_file: download_file
   }
