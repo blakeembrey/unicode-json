@@ -1,5 +1,7 @@
 # [unicode-json](https://github.com/Zertz/unicode-json) [![Build Status](https://travis-ci.org/Zertz/unicode-json.svg?branch=master)](https://travis-ci.org/Zertz/unicode-json) [![NPM version](https://badge.fury.io/js/unicode-json.png)](http://badge.fury.io/js/unicode-json)
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/blakeembrey/unicode-json.svg)](https://greenkeeper.io/)
+
 > Downloads http://unicode.org/Public/UNIDATA/UnicodeData.txt and saves each category into a JSON file.
 
 ## Install
